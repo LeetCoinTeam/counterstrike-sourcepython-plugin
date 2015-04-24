@@ -201,7 +201,7 @@ class LeetCoinAPIClient:
     """ Client access to the leetcoin api """
 
     def __init__(self, url, api_key, shared_secret, debug=True):
-        max_threads = 5 # 5 is an arbitrary number. increase this number on a more high-load/demand server
+        max_threads = 20 # 5 is an arbitrary number. increase this number on a more high-load/demand server
         self.url = url
         self.api_key = api_key
         self.shared_secret = shared_secret
@@ -319,8 +319,7 @@ class LeetCoinAPIClient:
 
                 victim.rank = int(new_loser_rank)
                 attacker.rank = int(new_winner_rank)
-        
-            
+                
                 if victim.btcBalance < self.minumumBTCHold:
                     kick_player = True
                     victim.kick = True
@@ -329,13 +328,39 @@ class LeetCoinAPIClient:
                 self.matchkills = self.matchkills +1
         
                 tell_all_players('%s earned: %s Satoshi for killing %s' %(attacker.name, self.kill_reward, victim.name))
+            else:
+                """
+                if not self.no_death_penalty:
+                    attacker.btcBalance = attacker.btcBalance + self.kill_reward
+                    victim.btcBalance = victim.btcBalance - self.incrementBTC - self.incrementBTC
 
+                    victim.deaths = victim.deaths +2
+                    attacker.kills = attacker.kill+1
+                
+                    ## TODO HARDCODED FOR NOW.  Inject weapon name here.
+                    attacker.weapon = "Unknown"
+
+                    ## get new ranking
+                    new_winner_rank, new_loser_rank  = calculate_elo_rank(player_a_rank=attacker.rank ,player_b_rank=victim.rank )
+
+                    victim.rank = int(new_loser_rank)
+                    attacker.rank = int(new_winner_rank)
+
+                    if victim.btcBalance < self.minumumBTCHold:
+                        kick_player = True
+                        victim.kick = True
+                        self.deactivatePlayer(victim_64, kick=True, message="Your balance is too low to continue playing.  Go to leetcoin.com to add more btc to your server hold.")
+
+                    self.matchkills = self.matchkills +1
+
+                    tell_all_players('%s earned: %s Satoshi for killing %s' %(attacker.name, self.kill_reward, victim.name))
+                 """
             return kick_player, victim.btcBalance, attacker.btcBalance
             
         else:
             print("[1337] [recordKill] ERROR - Victim or attacker player object not found")
             #tell_all_players('Non-Authorized player kill/death.  Authorize this server on www.leetcoin.com for tracking, and rewards!')
-            return True, 0, 0
+            return True, "noreg", "noreg"
     
     def authorizeActivatePlayer(self, steam_64, userid):
         """ Kick off a thread to activate a player
@@ -503,9 +528,6 @@ class LeetCoinAPIClient:
         sharedDataSemaphore.acquire()
         count = self.shareddata.len_authorized_player_list()
         sharedDataSemaphore.release()
-        if count < 2:
-            print("CANNOT ISSUE AN AWARD - LESS THAN TWO PLAYERS ONLINE")
-            return False
         player_index, player_obj = self.getPlayerObjByUserid(player)
         if not player_obj:
             print("CANNOT ISSUE AN AWARD - COULD NOT GET PLAYER")
@@ -517,6 +539,8 @@ class LeetCoinAPIClient:
         new_dict["award"] = award
         new_dict["encryption"] = "md5"
         #new_dict["debug"] = self.debug
+        self.matchkills = self.matchkills +1
+        print("MatchKils at " + str(self.matchkills)) 
         actionQueue.put([_REQUEST_AWARD, new_dict])
         
 
@@ -590,8 +614,11 @@ def get_https_response(params, uri, debug=True):
     print ("request made")
     response = conn.getresponse()
     print ("response: %s" %response)
+    answer = response.readall().decode('utf-8')
+    # close connection
+    conn.close()
     #return headers
-    return response.readall().decode('utf-8')
+    return answer #response.readall().decode('utf-8')
     
 
 
@@ -814,7 +841,7 @@ class Worker(threading.Thread):
                 if self.debug:
                     print("[1337] [%s] [activate player] non authorized players are permitted" % (self.threadID))
             else:
-                self.doKick(userid, "this server is nto authorized for you. go to leetcoin.com to authorize it", True)
+                self.doKick(userid, "This server is not authorized for you. Go to leetcoin.com to authorize it!", True)
                 ## TODO PUT SOMETHING ON THE QUEUE FOR DEACTIVATING A PLAYER
                 global actionQueue
                 new_dict = {}
@@ -856,7 +883,7 @@ class Worker(threading.Thread):
 
         params = OrderedDict([
                 ("award", award_json),
-                ("encryption", encryption),
+         #       ("encryption", encryption),
                 ("nonce", time.time()),
             ])
         response = self.get_https_response(params, uri)
@@ -942,6 +969,7 @@ class Worker(threading.Thread):
                     uri = "/api/put_match_results"
 
                     player_json_list = json.dumps(player_dict_list)
+                    print(str(player_json_list))
                     params = OrderedDict([
                                       ("encryption", self.encryption),
                                       ("map_title", "Unknown"),

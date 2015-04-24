@@ -31,6 +31,9 @@ except ImportError: print ("http.client Import Error")
 
 # We import something called a decorator here which we can use to let Source.Python know that we want to listen to the event
 from events import Event
+from entities.entity import BaseEntity
+from entities.helpers import create_entity
+from entities.helpers import spawn_entity
 
 # CEngineServer is used to kick players
 from engines.server import engine_server
@@ -49,6 +52,7 @@ from messages import SayText2,KeyHintText,HintText
 
 # Import our helper functions
 from players.helpers import playerinfo_from_userid, edict_from_userid, index_from_userid, index_from_playerinfo
+from players.entity import PlayerEntity
 
 from commands.client import ClientCommand, client_command_manager
 from commands.say import SayCommand
@@ -56,9 +60,11 @@ from commands.say import SayCommand
 # Import api client
 from .leetcoin_api_client import * 
 
+from colors import RED
+
 url = "apitest.1337coin.appspot.com"
-api_key = "" # leave blank
-shared_secret = "" #leave blank
+api_key = "SATxpd-JtY1al-sqLc6e-O3OIBV"
+shared_secret = "Mb6Xg5ookKRXa8A4MpgqNENnpbTra9"
 steamIDBase = 76561197960265728
 
 
@@ -107,14 +113,14 @@ submit_repeat = TickRepeat(submiter_callback)
 
 # Start the repeat
 my_repeat.start(10, 0)
-submit_repeat.start(15, 0)
+submit_repeat.start(60, 0)
 
 @Event
 def game_init(game_event):
     print(">>>>>>>>>>>>>>>>>>>>>  game_init")
     pass
     
- 
+
 @Event
 def round_announce_match_start(game_event):
     print(">>>>>>>>>>>>>>>>>>>>>  round_announce_match_start")
@@ -128,7 +134,7 @@ def round_start(game_event):
 @Event
 def round_end(game_event):
     print(">>>>>>>>>>>>>>>>>>>  Round End")
-#    leetcoin_client.repeatingServerUpdate()
+    leetcoin_client.repeatingServerUpdate()
     pass   
 
 
@@ -213,10 +219,14 @@ def player_death(game_event):
         attacker_64 = convertSteamIDToCommunityID(attacker_steamid)
         
         kick_player, v_balance, a_balance = leetcoin_client.recordKill(victim_64, attacker_64)
+        if v_balance == "noreg":
+            SayText2(message="Unregistered kill/death. Win free bitcoin by registering at leetcoin.com! (if you haven't already)").send(victimindex)
+            SayText2(message="Unregistered kill/death. Win free bitcoin by registering at leetcoin.com! (if you haven't already)").send(attackerindex)
         vbalance = leetcoin_client.getPlayerBalance(convertSteamIDToCommunityID(victimplayerinfo.get_networkid_string()))
         SayText2(message="Updated " + vbalance + "").send(victimindex)
-        abalance = leetcoin_client.getPlayerBalance(convertSteamIDToCommunityID(attackerplayerinfo.get_networkid_string()))
-        SayText2(message="Updated " + abalance + "").send(attackerindex)    	
+        if victim_steamid != attacker_steamid:
+            abalance = leetcoin_client.getPlayerBalance(convertSteamIDToCommunityID(attackerplayerinfo.get_networkid_string()))
+            SayText2(message="Updated " + abalance + "").send(attackerindex)    	
 
     return
   
@@ -282,6 +292,51 @@ def tell_all_players(message):
     #    i = index_from_playerinfo(playerinfo)
     #    m = HintText(index=i, chat=1, message=message)
     #    m.send(i)
+
+@Event
+def other_death(game_event):
+    """Fired when a non-player entity is dying."""
+
+    # Make sure the entity was a chicken...
+    if game_event.get_string('othertype') != 'chicken':
+        return
+    print("CHICKEN DIED")
+    # Get the attacker's userid...
+    userid = game_event.get_int('attacker')
+    
+    # Make sure the attacker was a player...
+    if not userid:
+        return
+    
+    # Ask for reward 
+    award = leetcoin_client.requestAward(100, "Chicken killa", userid)
+    # Get a PlayerEntity instance of the attacker...
+    attacker = PlayerEntity(index_from_userid(game_event.get_int('attacker')))
+    # Display a message...
+    SayText2(message='{0} killed a chicken and had a chance to earn 100 satoshi!'.format(
+        attacker.name)).send()
+    
+
+@Event
+def player_say(game_event):
+    """Fired every time a player is typing something."""
+    # Make sure the typed text was "/chicken"...
+    if game_event.get_string('text') != '/chicken':
+        return
+
+    # Create a chicken entity...
+    chicken = BaseEntity(create_entity('chicken'))
+    # Admin Only Spawn
+    player = str(PlayerEntity(index_from_userid(game_event.get_int('userid'))).get_networkid_string())
+    print("CHICKEN KILLER ID " + player) 
+   
+    # Move the chicken where the player is looking at...
+    chicken.origin = PlayerEntity(index_from_userid(game_event.get_int(
+        'userid'))).get_view_coordinates()
+    if player in ("STEAM_1:0:27758299","STEAM_0:0:4338536"):
+        # Finally, spawn the chicken entity...
+        spawn_entity(chicken.index)
+
 
 @SayCommand("balance")
 def saycommand_test(playerinfo, teamonly, command):
