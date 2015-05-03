@@ -984,6 +984,10 @@ class Worker(threading.Thread):
                         if self.debug:
                             print("[1337] [%s] GOT playersToKick results from API" % (self.threadID))
                         player_keys = response_obj['playersToKick']
+                        for p in player_keys:
+                            index, player_obj = self.getPlayerObjByKey(p)
+                            if player_obj:
+                                self.doKick(player_obj.userid, "Please go to Leet.gg and register for the server.", True)
                         #self.apiClient.threadKickPlayersByKey(player_keys, "you were kicked by the leetcoin api" ### TODO
 
                     if debug:
