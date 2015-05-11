@@ -110,7 +110,7 @@ submit_repeat = TickRepeat(submiter_callback)
 
 # Start the repeat
 my_repeat.start(10, 0)
-submit_repeat.start(15, 0)
+submit_repeat.start(60, 0)
 
 @Event
 def game_init(game_event):
