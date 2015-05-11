@@ -62,11 +62,8 @@ from .leetcoin_api_client import *
 
 from colors import RED
 
-url = "apitest.1337coin.appspot.com"
-api_key = "SATxpd-JtY1al-sqLc6e-O3OIBV"
-shared_secret = "Mb6Xg5ookKRXa8A4MpgqNENnpbTra9"
+# Steam Base ID for Conversion
 steamIDBase = 76561197960265728
-
 
 # instanciate API client
 leetcoin_client = LeetCoinAPIClient(url, api_key, shared_secret)
@@ -113,7 +110,7 @@ submit_repeat = TickRepeat(submiter_callback)
 
 # Start the repeat
 my_repeat.start(10, 0)
-submit_repeat.start(60, 0)
+submit_repeat.start(15, 0)
 
 @Event
 def game_init(game_event):

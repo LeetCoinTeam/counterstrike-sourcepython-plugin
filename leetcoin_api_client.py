@@ -65,7 +65,7 @@ from .leetcoinconfig import *
 
 #global variables required for thread synchronization
 global actionQueue
-actionQueue = queue.Queue(25) # available queue options:
+actionQueue = queue.Queue(0) # available queue options:
 '''
 request award
 activate player
@@ -201,7 +201,7 @@ class LeetCoinAPIClient:
     """ Client access to the leetcoin api """
 
     def __init__(self, url, api_key, shared_secret, debug=True):
-        max_threads = 20 # 5 is an arbitrary number. increase this number on a more high-load/demand server
+        max_threads = 10 # 5 is an arbitrary number. increase this number on a more high-load/demand server
         self.url = url
         self.api_key = api_key
         self.shared_secret = shared_secret
@@ -259,11 +259,12 @@ class LeetCoinAPIClient:
         
             if self.debug:
                 print("----------------------- SERVER INIT ------------------------")
+                print("[1337] api_version: %s" %server_info['api_version'])
                 print("[1337] serverRakeBTCPercentage: %s" %self.serverRakeBTCPercentage)
                 print("[1337] leetcoinRakePercentage: %s" %self.leetcoinRakePercentage)
                 print("[1337] incrementBTC: %s" %self.incrementBTC)
                 print("[1337] kill_reward: %s" %self.kill_reward)
-
+              
                 print("[1337] minumumBTCHold: %s" %self.minumumBTCHold)
         else:
             print("AUTHORIZATION FAILED ACCESSING SERVER INFO")
@@ -279,8 +280,11 @@ class LeetCoinAPIClient:
         sharedDataSemaphore.release()
         new_dict["match_kills"] = self.matchkills
         new_dict["debug"] = self.debug
-        actionQueue.put([_SUBMIT_MATCH_RESULTS, new_dict])
-    
+        try:
+            actionQueue.put([_SUBMIT_MATCH_RESULTS, new_dict])
+        except Exception as e:
+            print("Exception in adding to actionQueue for Submit Match Results")        
+
     def recordKill(self, victim_64, attacker_64):
         """ Add a kill to the kill record """
         if self.debug:
@@ -918,7 +922,6 @@ class Worker(threading.Thread):
         debug = action_args["debug"]
         match_kills = action_args["match_kills"]
 
-
         if debug:
             print("[1337] [%s] [ThreadedSubmitMatchResults] run" % (self.threadID))
         sharedDataSemaphore.acquire()
@@ -985,7 +988,7 @@ class Worker(threading.Thread):
                             print("[1337] [%s] GOT playersToKick results from API" % (self.threadID))
                         player_keys = response_obj['playersToKick']
                         for p in player_keys:
-                            index, player_obj = self.getPlayerObjByKey(p)
+                            index, player_obj = self.getPlayerObjByPlatformID(p)
                             if player_obj:
                                 self.doKick(player_obj.userid, "Please go to Leet.gg and register for the server.", True)
                         #self.apiClient.threadKickPlayersByKey(player_keys, "you were kicked by the leetcoin api" ### TODO
