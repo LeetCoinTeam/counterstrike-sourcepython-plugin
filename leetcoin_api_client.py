@@ -1,4 +1,4 @@
-## Interface to the leetcoin.com game server api
+## Interface to the leet.gg game server api
 ## For use with python eventscripts
 ## Version 0.0.2
 
@@ -146,7 +146,7 @@ class Award():
         
 class Player():
     """ a leetcoin player """
-    def __init__(self, key, platformID, btcBalance, btcHold, kills, deaths, player_active, name, userid=0, rank=1600):
+    def __init__(self, key, platformID, btcBalance, btcHold, kills, deaths, player_active, name, default_currency_display, default_currency_conversion, userid=0, rank=1600):
         self.key = key
         self.platformID = platformID
         self.btcBalance = btcBalance
@@ -162,6 +162,8 @@ class Player():
         self.weapon = ""
         self.activate_timestamp = datetime.datetime.now()
         self.deactivate_timestamp = datetime.datetime.now()
+        self.defaultCurrencyDisplay = default_currency_display
+        self.defaultCurrencyConversion = default_currency_conversion
         
     def get_key(self):
         return self.key
@@ -327,7 +329,7 @@ class LeetCoinAPIClient:
                 if victim.btcBalance < self.minumumBTCHold:
                     kick_player = True
                     victim.kick = True
-                    self.deactivatePlayer(victim_64, kick=True, message="Your balance is too low to continue playing.  Go to leetcoin.com to add more btc to your server hold.")
+                    self.deactivatePlayer(victim_64, kick=True, message="Your balance is too low to continue playing.  Go to leet.gg to add more btc to your server hold.")
             
                 self.matchkills = self.matchkills +1
         
@@ -353,7 +355,7 @@ class LeetCoinAPIClient:
                     if victim.btcBalance < self.minumumBTCHold:
                         kick_player = True
                         victim.kick = True
-                        self.deactivatePlayer(victim_64, kick=True, message="Your balance is too low to continue playing.  Go to leetcoin.com to add more btc to your server hold.")
+                        self.deactivatePlayer(victim_64, kick=True, message="Your balance is too low to continue playing.  Go to leet.gg to add more btc to your server hold.")
 
                     self.matchkills = self.matchkills +1
 
@@ -363,7 +365,7 @@ class LeetCoinAPIClient:
             
         else:
             print("[1337] [recordKill] ERROR - Victim or attacker player object not found")
-            #tell_all_players('Non-Authorized player kill/death.  Authorize this server on www.leetcoin.com for tracking, and rewards!')
+            #tell_all_players('Non-Authorized player kill/death.  Authorize this server on www.leet.gg for tracking, and rewards!')
             return True, "noreg", "noreg"
     
     def authorizeActivatePlayer(self, steam_64, userid):
@@ -380,7 +382,7 @@ class LeetCoinAPIClient:
     
 
     
-    def deactivatePlayer(self, steam_64, kick=False, message="You have been kicked from the server.  Go to leetcoin.com to verify your balance and authorization status."):
+    def deactivatePlayer(self, steam_64, kick=False, message="You have been kicked from the server.  Go to leet.gg to verify your balance and authorization status."):
         global actionQueue
         if self.debug:
             print ("[1337] deactivatePlayer")
@@ -416,7 +418,9 @@ class LeetCoinAPIClient:
             
         if player_obj:
             print("[1337] getPlayerBalance - returning %i" %player_obj.btcBalance)
-            return "Balance: %i Satoshi" % player_obj.btcBalance
+            #return "Balance: %i Satoshi" % player_obj.btcBalance
+            converted_amount = str(round(float(player_obj.btcBalance * player_obj.defaultCurrencyConversion),2))
+            return "Balance: " + converted_amount + " " + player_obj.defaultCurrencyDisplay + " (" + str(round(float(player_obj.btcBalance/100),2)) + " Bits)"
         else:
             return "Your balance is currently being updated.  Stand by."
             
@@ -805,6 +809,8 @@ class Worker(threading.Thread):
                     player_obj.player_active = True
                     player_obj.disconnected = False
                     player_obj.userid = userid
+                    player_obj.defaultCurrencyDisplay = player_info['default_currency_display']
+                    player_obj.defaultCurrencyConversion = float(player_info['default_currency_conversion'])
                 else:
                     if self.debug:
                         print ("[1337] [%s] [authorizeActivatePlayer] Player Obj NOT found "
@@ -818,8 +824,11 @@ class Worker(threading.Thread):
                                         0, 
                                         True, 
                                         player_info['player_name'],
+                                        player_info['default_currency_display'],
+                                        float(player_info['default_currency_conversion']),
                                         userid=userid, 
-                                        rank=player_rank)
+                                        rank=player_rank
+                                        )
                     sharedDataSemaphore.acquire()
                     self.shareddata.add_to_authorized_player_list(player_obj)
 #                    self.authorizedPlayerObjectList.append(player_obj) ## TODO GLOBAL VAR!!!
@@ -828,7 +837,7 @@ class Worker(threading.Thread):
                 # player does NOT have enough balance to play
                 if self.debug:
                     print ("[1337] [%s] [activate player] Player balance too low." % self.threadID)
-                self.doKick(userid, "Your balance is too low to play on this server.  Go to leetcoin.com to add more to your balance.", True)
+                self.doKick(userid, "Your balance is too low to play on this server.  Go to leet.gg to add more to your balance.", True)
                 global actionQueue
                 new_dict = {}
                 new_dict["platformid"] = player_info["player_platformid"]
@@ -845,7 +854,7 @@ class Worker(threading.Thread):
                 if self.debug:
                     print("[1337] [%s] [activate player] non authorized players are permitted" % (self.threadID))
             else:
-                self.doKick(userid, "This server is not authorized for you. Go to leetcoin.com to authorize it!", True)
+                self.doKick(userid, "This server is not authorized for you. Go to leet.gg to authorize it!", True)
                 ## TODO PUT SOMETHING ON THE QUEUE FOR DEACTIVATING A PLAYER
                 global actionQueue
                 new_dict = {}

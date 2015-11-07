@@ -51,7 +51,7 @@ from listeners.tick import TickRepeat, tick_delays
 from messages import SayText2,KeyHintText,HintText
 
 # Import our helper functions
-from players.helpers import playerinfo_from_userid, edict_from_userid, index_from_userid, index_from_playerinfo
+from players.helpers import playerinfo_from_userid, edict_from_userid, index_from_userid, index_from_playerinfo, playerinfo_from_index
 from players.entity import PlayerEntity
 
 from commands.client import ClientCommand, client_command_manager
@@ -110,32 +110,32 @@ submit_repeat = TickRepeat(submiter_callback)
 
 # Start the repeat
 my_repeat.start(10, 0)
-submit_repeat.start(60, 0)
+submit_repeat.start(15, 0)
 
-@Event
+@Event("game_init")
 def game_init(game_event):
     print(">>>>>>>>>>>>>>>>>>>>>  game_init")
     pass
     
 
-@Event
+@Event("round_announce_match_start")
 def round_announce_match_start(game_event):
     print(">>>>>>>>>>>>>>>>>>>>>  round_announce_match_start")
     pass   
 
-@Event
+@Event("round_start")
 def round_start(game_event):
     print("Round Start")
     pass
  
-@Event
+@Event("round_end")
 def round_end(game_event):
     print(">>>>>>>>>>>>>>>>>>>  Round End")
     leetcoin_client.repeatingServerUpdate()
     pass   
 
 
-@Event
+@Event("player_activate")
 def player_activate(game_event):
     """ this includes bots apparently """
     print("Player Connect")
@@ -150,7 +150,7 @@ def player_activate(game_event):
     if steam64:
         leetcoin_client.authorizeActivatePlayer(steam64, userid)
 
-@Event
+@Event("player_disconnect")
 def player_disconnect(game_event):
     """ this includes bots apparently """
     print("Player Disconnect")
@@ -169,7 +169,7 @@ def player_disconnect(game_event):
         deactivated_result = leetcoin_client.deactivatePlayer(steam64)
 
     
-@Event
+@Event("player_death")
 def player_death(game_event):
     """ this includes bots apparently """
     print("Player Death")
@@ -190,10 +190,10 @@ def player_death(game_event):
     print("victimplayerinfo: %s" % victimplayerinfo)
     print("attackerplayerinfo: %s" % attackerplayerinfo)
     # And finally get the player's name 
-    victimname = victimplayerinfo.get_name()
-    attackername = attackerplayerinfo.get_name()
-    print("victimname: %s" % victimname)
-    print("attackername: %s" % attackername)
+    #victimname = victimplayerinfo.get_name()
+    #attackername = attackerplayerinfo.get_name()
+    #print("victimname: %s" % victimname)
+    #print("attackername: %s" % attackername)
     
     # Get the index of the player
     victimindex = index_from_userid(victim)
@@ -217,8 +217,8 @@ def player_death(game_event):
         
         kick_player, v_balance, a_balance = leetcoin_client.recordKill(victim_64, attacker_64)
         if v_balance == "noreg":
-            SayText2(message="Unregistered kill/death. Win free bitcoin by registering at leetcoin.com! (if you haven't already)").send(victimindex)
-            SayText2(message="Unregistered kill/death. Win free bitcoin by registering at leetcoin.com! (if you haven't already)").send(attackerindex)
+            SayText2(message="Unregistered kill/death. Win free bitcoin by registering at leet.gg! (if you haven't already)").send(victimindex)
+            SayText2(message="Unregistered kill/death. Win free bitcoin by registering at leet.gg! (if you haven't already)").send(attackerindex)
         vbalance = leetcoin_client.getPlayerBalance(convertSteamIDToCommunityID(victimplayerinfo.get_networkid_string()))
         SayText2(message="Updated " + vbalance + "").send(victimindex)
         if victim_steamid != attacker_steamid:
@@ -290,7 +290,7 @@ def tell_all_players(message):
     #    m = HintText(index=i, chat=1, message=message)
     #    m.send(i)
 
-@Event
+@Event("other_death")
 def other_death(game_event):
     """Fired when a non-player entity is dying."""
 
@@ -306,15 +306,15 @@ def other_death(game_event):
         return
     
     # Ask for reward 
-    award = leetcoin_client.requestAward(100, "Chicken killa", userid)
+    award = leetcoin_client.requestAward(100, "Chicken killa", userid)    
     # Get a PlayerEntity instance of the attacker...
     attacker = PlayerEntity(index_from_userid(game_event.get_int('attacker')))
     # Display a message...
-    SayText2(message='{0} killed a chicken and had a chance to earn 100 satoshi!'.format(
+    SayText2(message='{0} killed a chicken and had a chance to earn 1 Bit!'.format(
         attacker.name)).send()
     
 
-@Event
+@Event("player_say")
 def player_say(game_event):
     """Fired every time a player is typing something."""
     # Make sure the typed text was "/chicken"...
@@ -336,7 +336,7 @@ def player_say(game_event):
 
 
 @SayCommand("balance")
-def saycommand_test(playerinfo, teamonly, command):
-    #SayText2(message="balance").send(index_from_playerinfo(playerinfo))
+def saycommand_test(command, index, team_only): #playerinfo, teamonly, command
+    playerinfo = playerinfo_from_index(index)
     balance = leetcoin_client.getPlayerBalance(convertSteamIDToCommunityID(playerinfo.get_networkid_string()))
-    SayText2(message="" + balance + "").send(index_from_playerinfo(playerinfo))
+    SayText2(message="" + balance + "").send(index)
